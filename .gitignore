@@ -1,0 +1,17 @@
+# Ignore Rust build artifacts
+/target
+/Cargo.lock
+
+# VS Code settings
+/.vscode
+
+# Debugging files
+*.log
+
+# Build Files
+/Builds
+BuildTools.jar
+BuildTools.log.txt
+
+# Database Files
+spigot_builds.db
