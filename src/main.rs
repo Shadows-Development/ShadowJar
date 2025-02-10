@@ -1,10 +1,9 @@
-use std::fs;
-use std::path::{Path, PathBuf};
-use std::process::Command;
-// use reqwest::blocking::get;
 use chrono::Utc;
 use rusqlite::{params, Connection, Result};
+use std::fs;
 use std::io;
+use std::path::{Path, PathBuf};
+use std::process::Command;
 use tokio::time::{sleep, Duration};
 
 const BUILD_TOOLS_URL: &str = "https://hub.spigotmc.org/jenkins/job/BuildTools/lastSuccessfulBuild/artifact/target/BuildTools.jar";
