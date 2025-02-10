@@ -1,11 +1,11 @@
-use std::process::Command;
 use std::fs;
 use std::path::{Path, PathBuf};
+use std::process::Command;
 // use reqwest::blocking::get;
-use rusqlite::{params, Connection, Result};
 use chrono::Utc;
-use tokio::time::{sleep, Duration};
+use rusqlite::{params, Connection, Result};
 use std::io;
+use tokio::time::{sleep, Duration};
 
 const BUILD_TOOLS_URL: &str = "https://hub.spigotmc.org/jenkins/job/BuildTools/lastSuccessfulBuild/artifact/target/BuildTools.jar";
 const BUILD_TOOLS_JAR: &str = "BuildTools.jar";
@@ -48,15 +48,23 @@ fn download_build_tools() -> io::Result<()> {
 
     if !response.status().is_success() {
         eprintln!("Failed to download BuildTools: HTTP {}", response.status());
-        return Err(io::Error::new(io::ErrorKind::Other, "Failed to fetch BuildTools"));
+        return Err(io::Error::new(
+            io::ErrorKind::Other,
+            "Failed to fetch BuildTools",
+        ));
     }
 
     let mut file = fs::File::create(BUILD_TOOLS_JAR)?;
-    let bytes = response.bytes().map_err(|e| io::Error::new(io::ErrorKind::Other, e.to_string()))?;
+    let bytes = response
+        .bytes()
+        .map_err(|e| io::Error::new(io::ErrorKind::Other, e.to_string()))?;
 
     if bytes.len() < 100_000 {
         eprintln!("Downloaded BuildTools.jar is too small, something went wrong.");
-        return Err(io::Error::new(io::ErrorKind::Other, "Downloaded file is too small"));
+        return Err(io::Error::new(
+            io::ErrorKind::Other,
+            "Downloaded file is too small",
+        ));
     }
 
     io::copy(&mut bytes.as_ref(), &mut file)?;
@@ -76,9 +84,11 @@ fn download_build_tools() -> io::Result<()> {
 
     eprintln!("Downloaded BuildTools.jar is corrupt.");
     fs::remove_file(BUILD_TOOLS_JAR)?;
-    Err(io::Error::new(io::ErrorKind::Other, "Downloaded file verification failed"))
+    Err(io::Error::new(
+        io::ErrorKind::Other,
+        "Downloaded file verification failed",
+    ))
 }
-
 
 // Creates build directory structure
 fn create_build_directory(server_type: &str, version: &str) -> io::Result<PathBuf> {
@@ -90,34 +100,54 @@ fn create_build_directory(server_type: &str, version: &str) -> io::Result<PathBu
 // Runs BuildTools to generate Spigot JAR in the correct directory
 fn run_build_tools(server_type: &str, version: &str) -> io::Result<String> {
     let build_path = create_build_directory(server_type, version)?;
-    println!("Running BuildTools for version {} in {:?}...", version, build_path);
+    println!(
+        "Running BuildTools for version {} in {:?}...",
+        version, build_path
+    );
 
-    // Ensure BuildTools.jar is copied into the build directory
+    // Copy BuildTools.jar into the build directory
     let build_tools_path = build_path.join("BuildTools.jar");
     if !build_tools_path.exists() {
         fs::copy(BUILD_TOOLS_JAR, &build_tools_path)?;
     }
 
-    // Run BuildTools within the correct build directory
     let output = Command::new("C:\\Program Files\\Git\\bin\\bash.exe")
         .arg("-c")
-        .arg(format!("cd {:?} && java -Xmx4G -jar BuildTools.jar --rev {}", build_path, version))
+        .arg(format!(
+            "cd {:?} && java -jar BuildTools.jar --rev {}",
+            build_path, version
+        ))
         .output()?;
 
     if output.status.success() {
         let jar_path = build_path.join(format!("spigot-{}.jar", version));
         println!("Build complete: {:?}", jar_path);
 
-        // Clean up build directory except for the JAR file
-        for entry in fs::read_dir(&build_path)? {
-            let entry = entry?;
-            let path = entry.path();
-            if path.is_file() && path.extension().and_then(|ext| ext.to_str()) != Some("jar") {
-                fs::remove_file(path)?;
+        // List of folders and files to delete
+        let cleanup_items = vec![
+            "BuildTools.jar",
+            "work",
+            "Spigot",
+            "CraftBukkit",
+            "Bukkit",
+            "BuildData",
+            "apache-maven-3.9.6",
+        ];
+
+        // Remove specified folders and files
+        for item in &cleanup_items {
+            let path = build_path.join(item);
+            if path.exists() {
+                if path.is_dir() {
+                    fs::remove_dir_all(&path)?;
+                } else {
+                    fs::remove_file(&path)?;
+                }
             }
         }
-        println!("Build directory cleaned up, only JAR file remains.");
-        
+
+        println!("Build directory cleaned up, only JAR and Log file remains.");
+
         Ok(jar_path.to_string_lossy().to_string())
     } else {
         eprintln!(
@@ -129,7 +159,6 @@ fn run_build_tools(server_type: &str, version: &str) -> io::Result<String> {
         Err(io::Error::new(io::ErrorKind::Other, "BuildTools failed"))
     }
 }
-
 
 // Stores build info in SQLite
 fn store_build_info(conn: &Connection, version: &str, build_path: &str) -> Result<()> {
@@ -177,22 +206,25 @@ async fn background_build_checker() {
             .map_err(|e| eprintln!("Task panicked in spawn_blocking: {:?}", e))
             .ok()
             .and_then(|res| res.ok());
-        
+
         if conn.is_none() {
             eprintln!("Database setup failed, skipping build...");
             return;
         }
         let conn = conn.unwrap();
 
-        tokio::task::spawn_blocking(|| download_build_tools().expect("Failed to download BuildTools"))
-            .await
-            .expect("Failed to run blocking task");
+        tokio::task::spawn_blocking(|| {
+            download_build_tools().expect("Failed to download BuildTools")
+        })
+        .await
+        .expect("Failed to run blocking task");
 
-        let build_result = tokio::task::spawn_blocking(move || run_build_tools("Spigot", &latest_version))
-            .await
-            .map_err(|e| eprintln!("Task panicked: {:?}", e))
-            .ok()
-            .and_then(|res| res.ok());
+        let build_result =
+            tokio::task::spawn_blocking(move || run_build_tools("Spigot", &latest_version))
+                .await
+                .map_err(|e| eprintln!("Task panicked: {:?}", e))
+                .ok()
+                .and_then(|res| res.ok());
 
         if let Some(build_path) = build_result {
             let latest_version_clone2 = latest_version_clone.clone();
