@@ -1,0 +1,47 @@
+name: "🚀 Feature Request"
+description: "Suggest a new feature or improvement"
+title: "[Feature]: "
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: "## 🚀 Feature Request\nSuggest a new feature or improvement for ShadowJar."
+  
+  - type: textarea
+    id: feature-description
+    attributes:
+      label: "Describe the Feature"
+      description: "Explain what the feature is and why it's useful."
+      placeholder: "I would like ShadowJar to..."
+    validations:
+      required: true
+
+  - type: textarea
+    id: use-case
+    attributes:
+      label: "Use Case"
+      description: "How will this feature be used?"
+      placeholder: "This feature will help users by..."
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: "Alternatives Considered"
+      description: "Are there any alternative solutions?"
+      placeholder: "Another way to achieve this is..."
+    validations:
+      required: false
+
+  - type: dropdown
+    id: priority
+    attributes:
+      label: "Priority"
+      description: "How urgent is this feature?"
+      options:
+        - "🔵 Low - Nice to have"
+        - "🟡 Medium - Needed but not urgent"
+        - "🔴 High - Critical feature"
+    validations:
+      required: true

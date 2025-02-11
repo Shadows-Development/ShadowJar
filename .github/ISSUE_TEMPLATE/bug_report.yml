@@ -1,0 +1,59 @@
+name: "🐛 Bug Report"
+description: "Report a problem or unexpected behavior"
+title: "[Bug]: "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: "## 🐛 Bug Report\nDescribe the issue with ShadowJar."
+
+  - type: textarea
+    id: bug-description
+    attributes:
+      label: "Describe the Bug"
+      description: "Provide a clear and concise description of the problem."
+      placeholder: "When I run ShadowJar, it crashes because..."
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps-to-reproduce
+    attributes:
+      label: "Steps to Reproduce"
+      description: "List the steps needed to reproduce the bug."
+      placeholder: |
+        1. Run `cargo run`
+        2. Select version 1.21.4
+        3. Observe crash
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected-behavior
+    attributes:
+      label: "Expected Behavior"
+      description: "What should have happened instead?"
+      placeholder: "The expected result was..."
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: "Logs & Screenshots"
+      description: "Paste any relevant error logs or screenshots."
+      placeholder: "Paste logs from the console here..."
+    validations:
+      required: false
+
+  - type: dropdown
+    id: severity
+    attributes:
+      label: "Severity Level"
+      description: "How severe is the bug?"
+      options:
+        - "🟢 Minor - Small issue, does not affect usage"
+        - "🟡 Major - Affects functionality, but not breaking"
+        - "🔴 Critical - Prevents usage completely"
+    validations:
+      required: true
