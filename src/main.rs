@@ -8,7 +8,9 @@ use std::process::Command;
 use tokio::time::{sleep, Duration};
 use tracing::{error, info};
 use tracing_appender::rolling;
-use tracing_subscriber::{fmt, layer::SubscriberExt, util::SubscriberInitExt, Registry};
+use tracing_subscriber::{
+    fmt, layer::SubscriberExt, util::SubscriberInitExt, EnvFilter, Layer, Registry,
+};
 
 const BUILD_TOOLS_URL: &str = "https://hub.spigotmc.org/jenkins/job/BuildTools/lastSuccessfulBuild/artifact/target/BuildTools.jar";
 const BUILD_TOOLS_JAR: &str = "BuildTools.jar";
@@ -252,7 +254,8 @@ fn init_logging() -> tracing_appender::non_blocking::WorkerGuard {
 
     let console_out = fmt::layer()
         .with_timer(fmt::time::SystemTime)
-        .with_writer(std::io::stdout);
+        .with_writer(std::io::stdout)
+        .with_filter(EnvFilter::new("info"));
     let file_out = fmt::layer()
         .with_timer(fmt::time::SystemTime)
         .with_writer(file_writer);
