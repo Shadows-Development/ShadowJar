@@ -1,5 +1,9 @@
 # **ShadowJar - Minecraft Server Jar Builder**  
-ShadowJar is an **open-source Minecraft server jar builder** that automates fetching and compiling different Minecraft server types like **Spigot, Paper, Forge, and Fabric**. It includes a versioning API, automatic updates, and customizable build storage.
+ShadowJar is an **open-source Minecraft server jar builder** designed for **developers, server administrators, and companies** who need a **self-hosted, reliable solution** for fetching and compiling different Minecraft server versions without relying on external APIs.  
+
+With ShadowJar, you can **automate server builds**, maintain a **local versioning API**, and reduce dependency on third-party services like SpigotMC and PaperMC for fetching and managing versions. While ShadowJar still utilizes their official tools (such as `BuildTools.jar`), it allows users to **self-host their own build system**, cache versions locally, and automate updates—eliminating the need to manually query external sources.
+
+---
 
 ## **🚀 Features**
 - ✅ **Automatic Spigot Builds** – Fetches and compiles Spigot versions using `BuildTools.jar`.
@@ -7,7 +11,11 @@ ShadowJar is an **open-source Minecraft server jar builder** that automates fetc
 - ✅ **Build Cleanup** – Keeps only the final `.jar` file to save disk space.
 - ✅ **SQLite Database** – Tracks built versions for easy retrieval.
 - ✅ **Self-Hosting Support** – Users can run their own API instance.
-- ✅ **Parallel Builds** (Planned) – Optimize compilation by running builds concurrently.
+- ✅ **API for Build Version Retrieval** – Query available versions programmatically.
+- ✅ **Better Logging & Error Handling** – Improved error messages and structured logging.
+- 🛠️ **Parallel Builds** (In Progress) – Optimize compilation by running builds concurrently.
+- 🛠️ **Rework of the Build System** (In Progress) – Improve efficiency and modularity.
+- 🛠️ **Support for Additional Server Types** (Planned) – Paper, Forge, Fabric support.
 
 ---
 
@@ -42,22 +50,25 @@ cargo run
    │   │   ├── spigot-1.21.4.jar
    ```
 4. **Deletes temporary build files** and keeps only the final `.jar`.
+5. **Exposes an API** that allows querying available versions.
 
 ---
 
 ## **🛠️ Roadmap**
 ### **🚀 Short-Term Goals**
-- [ ] **Rework of the build system entirely**
+- [ ] **Rework of the Build System** (Optimizing compilation & modularizing)
 - [ ] **Support Additional Server Types** (Paper, Forge, Fabric)
-- [ ] **Implement API for Build Version Retrieval**
-- [ ] **Better Logging & Error Handling**
-- [ ] **Parallel Builds** to speed up compilation
+- [ ] **Support for Multiple Operating Systems**
+- [X] **Implement API for Build Version Retrieval**
+- [X] **Better Logging & Error Handling**
+- [🛠] **Parallel Builds** (Currently in progress)
 
 ### **🌍 Long-Term Goals**
 - [ ] **Webhook Notifications for New Minecraft Versions**
 - [ ] **Custom Build Flags for `BuildTools.jar`**
 - [ ] **Cloud Hosting Support (AWS, DigitalOcean, etc.)**
-- [ ] **GUI for Managing Builds**
+- [?] **GUI for Managing Builds**
+- [ ] **API Authentication & Rate Limiting**
 
 ---
 
