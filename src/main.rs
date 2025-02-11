@@ -120,8 +120,7 @@ fn run_build_tools(server_type: &str, version: &str) -> io::Result<String> {
     let build_path = create_build_directory(server_type, version)?;
     info!(
         "Running BuildTools for version {} in {:?}...",
-        version,
-        build_path
+        version, build_path
     );
 
     // Copy BuildTools.jar into the build directory

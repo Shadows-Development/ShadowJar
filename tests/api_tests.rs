@@ -1,8 +1,8 @@
-use shadow_jar::db::{init_db, insert_version};
+use reqwest::Client;
 use shadow_jar::api::create_api_router;
+use shadow_jar::db::{init_db, insert_version};
 use tokio::net::TcpListener;
 use tokio::task;
-use reqwest::Client;
 // use std::sync::Arc;
 // use tokio::sync::Mutex;
 
@@ -21,7 +21,9 @@ async fn start_test_server() -> String {
     let addr = listener.local_addr().unwrap();
 
     task::spawn(async move {
-        axum::serve(listener, app.into_make_service()).await.unwrap();
+        axum::serve(listener, app.into_make_service())
+            .await
+            .unwrap();
     });
 
     format!("http://{}", addr)
@@ -47,8 +49,16 @@ async fn test_get_versions() {
     eprintln!("🔹 Status Code: {:?}", status);
     eprintln!("🔹 Response Body: {}", body);
 
-    assert_eq!(status, reqwest::StatusCode::OK, "❌ Expected 200, got {}", status);
-    assert!(body.contains("Spigot"), "❌ Response does not contain 'Spigot'");
+    assert_eq!(
+        status,
+        reqwest::StatusCode::OK,
+        "❌ Expected 200, got {}",
+        status
+    );
+    assert!(
+        body.contains("Spigot"),
+        "❌ Response does not contain 'Spigot'"
+    );
 }
 
 /// ✅ Test for 404 when requesting an unknown server type
@@ -67,9 +77,17 @@ async fn test_unknown_server_type() {
     let body = response.text().await.unwrap();
 
     // ✅ Log full response details for debugging
-    eprintln!("🔹 Test Request: GET {}/api/versions/UnknownServer", server_url);
+    eprintln!(
+        "🔹 Test Request: GET {}/api/versions/UnknownServer",
+        server_url
+    );
     eprintln!("🔹 Status Code: {:?}", status);
     eprintln!("🔹 Response Body: {}", body);
 
-    assert_eq!(status, reqwest::StatusCode::NOT_FOUND, "❌ Expected 404, got {}", status);
+    assert_eq!(
+        status,
+        reqwest::StatusCode::NOT_FOUND,
+        "❌ Expected 404, got {}",
+        status
+    );
 }
