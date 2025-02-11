@@ -1,6 +1,6 @@
 name: 🚀 Rust CI
 
-on: [push, pull_request]
+on: [pull_request]
 
 jobs:
   # 🟡 Step 1: Linting
