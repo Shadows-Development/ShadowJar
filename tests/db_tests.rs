@@ -1,8 +1,8 @@
 use rusqlite::{Connection, Result};
+use shadow_jar::db::{get_versions, insert_version};
 use std::sync::Arc;
 use tokio;
 use tokio::sync::Mutex;
-use shadow_jar::db::{get_versions, insert_version};
 
 #[tokio::test]
 async fn test_database_operations() -> Result<()> {

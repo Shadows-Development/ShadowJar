@@ -21,6 +21,7 @@ pub async fn init_db() -> DbConnection {
 }
 
 /// Inserts a new Server version into the database.
+#[allow(dead_code)]
 pub async fn insert_version(db: DbConnection, server_type: &str, version: &str) {
     let conn = db.lock().await;
     conn.execute(

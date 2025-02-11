@@ -196,12 +196,12 @@ async fn background_build_checker() {
                 .ok()
                 .and_then(|res| res.ok());
 
-        if let Some(build_path) = build_result {
-            let latest_version_clone2 = latest_version_clone.clone();
-            insert_version(conn.clone(), "Spigot", &latest_version_clone2).await;
-        } else {
-            eprintln!("Build task was cancelled or failed");
+        if build_result.is_none() {
+            eprint!("Build task was cancelled or failed")
         }
+
+        let latest_version_clone2 = latest_version_clone.clone();
+        insert_version(conn.clone(), "Spigot", &latest_version_clone2).await;
 
         println!("Sleeping for 6 hours before checking for new builds...");
         sleep(Duration::from_secs(6 * 3600)).await;
