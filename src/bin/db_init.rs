@@ -1,5 +1,4 @@
 use shadow_jar::db::{init_db, insert_version};
-use tokio;
 
 #[tokio::main]
 async fn main() {
