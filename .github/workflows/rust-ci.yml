@@ -47,8 +47,3 @@ jobs:
       - name: Build Project
         run: cargo build --release
 
-      - name: Upload Build Artifact
-        uses: actions/upload-artifact@v3
-        with:
-          name: shadowjar
-          path: target/release/shadowjar
