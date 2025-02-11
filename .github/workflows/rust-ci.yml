@@ -1,0 +1,54 @@
+name: 🚀 Rust CI
+
+on: [push, pull_request]
+
+jobs:
+  # 🟡 Step 1: Linting
+  lint:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Check Formatting
+        run: cargo fmt --check
+
+      - name: Run Clippy (Linter)
+        run: cargo clippy -- -D warnings
+
+  # 🟢 Step 2: Tests (Depends on Linting)
+  test:
+    runs-on: windows-latest
+    needs: lint # ✅ This ensures tests run ONLY if linting passes
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Run Tests
+        run: cargo test --all-features
+
+  # 🔵 Step 3: Build (Depends on Tests)
+  build:
+    runs-on: windows-latest
+    needs: test # ✅ This ensures build runs ONLY if tests pass
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Build Project
+        run: cargo build --release
+
+      - name: Upload Build Artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: shadowjar
+          path: target/release/shadowjar
