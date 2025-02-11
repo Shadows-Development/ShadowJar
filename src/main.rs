@@ -5,6 +5,7 @@ use std::process::Command;
 use tokio::net::TcpListener;
 use tokio::sync::OnceCell;
 use tokio::time::{sleep, Duration};
+use tracing_subscriber::{fmt, prelude::*};
 // use tower::ServiceBuilder;
 
 const BUILD_TOOLS_URL: &str = "https://hub.spigotmc.org/jenkins/job/BuildTools/lastSuccessfulBuild/artifact/target/BuildTools.jar";
@@ -21,7 +22,7 @@ static DB: OnceCell<DbConnection> = OnceCell::const_new();
 
 async fn get_db() -> &'static DbConnection {
     DB.get_or_init(|| async {
-        println!("🚀 Initializing database...");
+        tracing::info!("🚀 Initializing database...");
         db::init_db().await
     })
     .await
@@ -35,7 +36,7 @@ fn get_latest_minecraft_version() -> String {
 // Downloads BuildTools.jar if not present or corrupt
 fn download_build_tools() -> io::Result<()> {
     if Path::new(BUILD_TOOLS_JAR).exists() {
-        println!("Checking BuildTools.jar integrity...");
+        tracing::info!("Checking BuildTools.jar integrity...");
         let output = Command::new("java")
             .arg("-jar")
             .arg(BUILD_TOOLS_JAR)
@@ -44,16 +45,16 @@ fn download_build_tools() -> io::Result<()> {
 
         if let Ok(output) = output {
             if output.status.success() {
-                println!("BuildTools.jar is valid.");
+                tracing::info!("BuildTools.jar is valid.");
                 return Ok(());
             } else {
-                eprintln!("BuildTools.jar is corrupt, redownloading...");
+                tracing::error!("BuildTools.jar is corrupt, redownloading...");
                 fs::remove_file(BUILD_TOOLS_JAR)?;
             }
         }
     }
 
-    println!("Downloading BuildTools...");
+    tracing::info!("Downloading BuildTools...");
     let client = reqwest::blocking::Client::new();
     let response = client
         .get(BUILD_TOOLS_URL)
@@ -62,7 +63,7 @@ fn download_build_tools() -> io::Result<()> {
         .map_err(|e| io::Error::new(io::ErrorKind::Other, e.to_string()))?;
 
     if !response.status().is_success() {
-        eprintln!("Failed to download BuildTools: HTTP {}", response.status());
+        tracing::error!("Failed to download BuildTools: HTTP {}", response.status());
         return Err(io::Error::new(
             io::ErrorKind::Other,
             "Failed to fetch BuildTools",
@@ -75,7 +76,7 @@ fn download_build_tools() -> io::Result<()> {
         .map_err(|e| io::Error::new(io::ErrorKind::Other, e.to_string()))?;
 
     if bytes.len() < 100_000 {
-        eprintln!("Downloaded BuildTools.jar is too small, something went wrong.");
+        tracing::error!("Downloaded BuildTools.jar is too small, something went wrong.");
         return Err(io::Error::new(
             io::ErrorKind::Other,
             "Downloaded file is too small",
@@ -83,7 +84,7 @@ fn download_build_tools() -> io::Result<()> {
     }
 
     io::copy(&mut bytes.as_ref(), &mut file)?;
-    println!("Download complete. Verifying integrity...");
+    tracing::info!("Download complete. Verifying integrity...");
     let verify_output = Command::new("java")
         .arg("-jar")
         .arg(BUILD_TOOLS_JAR)
@@ -92,12 +93,12 @@ fn download_build_tools() -> io::Result<()> {
 
     if let Ok(output) = verify_output {
         if output.status.success() {
-            println!("BuildTools.jar verified successfully.");
+            tracing::info!("BuildTools.jar verified successfully.");
             return Ok(());
         }
     }
 
-    eprintln!("Downloaded BuildTools.jar is corrupt.");
+    tracing::error!("Downloaded BuildTools.jar is corrupt.");
     fs::remove_file(BUILD_TOOLS_JAR)?;
     Err(io::Error::new(
         io::ErrorKind::Other,
@@ -115,9 +116,10 @@ fn create_build_directory(server_type: &str, version: &str) -> io::Result<PathBu
 // Runs BuildTools to generate Spigot JAR in the correct directory
 fn run_build_tools(server_type: &str, version: &str) -> io::Result<String> {
     let build_path = create_build_directory(server_type, version)?;
-    println!(
+    tracing::info!(
         "Running BuildTools for version {} in {:?}...",
-        version, build_path
+        version,
+        build_path
     );
 
     // Copy BuildTools.jar into the build directory
@@ -136,7 +138,7 @@ fn run_build_tools(server_type: &str, version: &str) -> io::Result<String> {
 
     if output.status.success() {
         let jar_path = build_path.join(format!("spigot-{}.jar", version));
-        println!("Build complete: {:?}", jar_path);
+        tracing::info!("Build complete: {:?}", jar_path);
 
         // List of folders and files to delete
         let cleanup_items = vec![
@@ -161,11 +163,11 @@ fn run_build_tools(server_type: &str, version: &str) -> io::Result<String> {
             }
         }
 
-        println!("Build directory cleaned up, only JAR and Log file remains.");
+        tracing::info!("Build directory cleaned up, only JAR and Log file remains.");
 
         Ok(jar_path.to_string_lossy().to_string())
     } else {
-        eprintln!(
+        tracing::error!(
             "BuildTools failed with status {:?}\nSTDOUT: {}\nSTDERR: {}",
             output.status,
             String::from_utf8_lossy(&output.stdout),
@@ -192,7 +194,7 @@ async fn background_build_checker() {
         let build_result =
             tokio::task::spawn_blocking(move || run_build_tools("Spigot", &latest_version))
                 .await
-                .map_err(|e| eprintln!("Task panicked: {:?}", e))
+                .map_err(|e| tracing::error!("Task panicked: {:?}", e))
                 .ok()
                 .and_then(|res| res.ok());
 
@@ -203,21 +205,31 @@ async fn background_build_checker() {
         let latest_version_clone2 = latest_version_clone.clone();
         insert_version(conn.clone(), "Spigot", &latest_version_clone2).await;
 
-        println!("Sleeping for 6 hours before checking for new builds...");
+        tracing::info!("Sleeping for 6 hours before checking for new builds...");
         sleep(Duration::from_secs(6 * 3600)).await;
     }
 }
 
 #[tokio::main]
 async fn main() {
-    println!("🚀 Initializing database...");
+    tracing_subscriber::registry()
+        .with(
+            fmt::layer()
+                .without_time() // ✅ Remove timestamps completely
+                .with_target(false) // ✅ Remove module paths
+                .with_level(true) // ✅ Keep log levels (INFO, WARN, ERROR)
+                .compact(), // ✅ Compact format without extra whitespace
+        )
+        .init();
+
+    // tracing::info!("🚀 Initializing database...");
     let db = get_db().await;
 
-    println!("🚀 Starting ShadowJar API...");
+    tracing::info!("🚀 Starting ShadowJar API...");
     let app = api::create_api_router(db.clone()).await;
 
     let listener = TcpListener::bind("0.0.0.0:8080").await.unwrap();
-    println!("✅ API server running on http://localhost:8080");
+    tracing::info!("✅ API server running on http://localhost:8080");
 
     tokio::spawn(async move {
         background_build_checker().await; // ✅ Ensure it runs async
