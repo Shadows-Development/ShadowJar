@@ -8,6 +8,7 @@ use axum::{
 };
 use serde::{Deserialize, Serialize};
 use serde_json::json;
+use tracing::info;
 
 #[derive(Serialize, Deserialize)]
 struct VersionResponse {
@@ -22,14 +23,14 @@ async fn get_all_versions(
     let versions = fetch_versions(db, &server_type).await;
 
     if versions.is_empty() {
-        println!("Requested unknown server type: {}", server_type);
+        info!("Requested unknown server type: {}", server_type);
         return (
             StatusCode::NOT_FOUND,
             Json(json!({"error": "Server type not found", "server_type": server_type})),
         );
     }
 
-    println!("Fetched versions for server type: {}", server_type);
+    info!("Fetched versions for server type: {}", server_type);
     (
         StatusCode::OK,
         Json(json!({ "server_type": server_type, "versions": versions })),

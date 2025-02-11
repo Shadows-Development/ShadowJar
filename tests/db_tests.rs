@@ -6,12 +6,10 @@ use tokio::sync::Mutex;
 
 #[tokio::test]
 async fn test_database_operations() -> Result<()> {
-    // ✅ Wrap the connection in `Arc<Mutex<Connection>>` for async compatibility
     let conn = Arc::new(Mutex::new(
         Connection::open_in_memory().expect("Failed to create in-memory DB"),
     ));
 
-    // ✅ Create the versions table inside the locked connection
     {
         let conn = conn.lock().await;
         conn.execute(
@@ -25,14 +23,11 @@ async fn test_database_operations() -> Result<()> {
         .expect("Failed to create test table");
     }
 
-    // ✅ Insert test data
     insert_version(conn.clone(), "Spigot", "1.21.4").await;
     insert_version(conn.clone(), "Spigot", "1.20.2").await;
 
-    // ✅ Fetch inserted versions
     let versions = get_versions(conn.clone(), "Spigot").await;
 
-    // ✅ Assertions
     assert!(versions.contains(&"1.21.4".to_string()));
     assert!(versions.contains(&"1.20.2".to_string()));
     assert_eq!(versions.len(), 2);
