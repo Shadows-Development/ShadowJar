@@ -5,8 +5,8 @@ use tokio::sync::Mutex;
 pub type DbConnection = Arc<Mutex<Connection>>;
 
 /// Initializes the database and creates the `versions` table if it doesn't exist.
-pub async fn init_db() -> DbConnection {
-    let conn = Connection::open("shadowjar.db").expect("Failed to open database");
+pub async fn init_db(db_name: &str) -> DbConnection {
+    let conn = Connection::open(db_name).expect("Failed to open database");
     conn.execute(
         "CREATE TABLE IF NOT EXISTS versions (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
