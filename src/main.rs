@@ -2,9 +2,13 @@ use chrono::Utc;
 use rusqlite::{params, Connection, Result};
 use std::fs;
 use std::io;
+use std::panic;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 use tokio::time::{sleep, Duration};
+use tracing::{error, info};
+use tracing_appender::rolling;
+use tracing_subscriber::{fmt, layer::SubscriberExt, util::SubscriberInitExt, Registry};
 
 const BUILD_TOOLS_URL: &str = "https://hub.spigotmc.org/jenkins/job/BuildTools/lastSuccessfulBuild/artifact/target/BuildTools.jar";
 const BUILD_TOOLS_JAR: &str = "BuildTools.jar";
@@ -19,7 +23,7 @@ fn get_latest_minecraft_version() -> String {
 // Downloads BuildTools.jar if not present or corrupt
 fn download_build_tools() -> io::Result<()> {
     if Path::new(BUILD_TOOLS_JAR).exists() {
-        println!("Checking BuildTools.jar integrity...");
+        info!("Checking BuildTools.jar integrity...");
         let output = Command::new("java")
             .arg("-jar")
             .arg(BUILD_TOOLS_JAR)
@@ -28,16 +32,16 @@ fn download_build_tools() -> io::Result<()> {
 
         if let Ok(output) = output {
             if output.status.success() {
-                println!("BuildTools.jar is valid.");
+                info!("BuildTools.jar is valid.");
                 return Ok(());
             } else {
-                eprintln!("BuildTools.jar is corrupt, redownloading...");
+                error!("BuildTools.jar is corrupt, redownloading...");
                 fs::remove_file(BUILD_TOOLS_JAR)?;
             }
         }
     }
 
-    println!("Downloading BuildTools...");
+    info!("Downloading BuildTools...");
     let client = reqwest::blocking::Client::new();
     let response = client
         .get(BUILD_TOOLS_URL)
@@ -46,7 +50,7 @@ fn download_build_tools() -> io::Result<()> {
         .map_err(|e| io::Error::new(io::ErrorKind::Other, e.to_string()))?;
 
     if !response.status().is_success() {
-        eprintln!("Failed to download BuildTools: HTTP {}", response.status());
+        error!("Failed to download BuildTools: HTTP {}", response.status());
         return Err(io::Error::new(
             io::ErrorKind::Other,
             "Failed to fetch BuildTools",
@@ -59,7 +63,7 @@ fn download_build_tools() -> io::Result<()> {
         .map_err(|e| io::Error::new(io::ErrorKind::Other, e.to_string()))?;
 
     if bytes.len() < 100_000 {
-        eprintln!("Downloaded BuildTools.jar is too small, something went wrong.");
+        error!("Downloaded BuildTools.jar is too small, something went wrong.");
         return Err(io::Error::new(
             io::ErrorKind::Other,
             "Downloaded file is too small",
@@ -67,7 +71,7 @@ fn download_build_tools() -> io::Result<()> {
     }
 
     io::copy(&mut bytes.as_ref(), &mut file)?;
-    println!("Download complete. Verifying integrity...");
+    info!("Download complete. Verifying integrity...");
     let verify_output = Command::new("java")
         .arg("-jar")
         .arg(BUILD_TOOLS_JAR)
@@ -76,12 +80,12 @@ fn download_build_tools() -> io::Result<()> {
 
     if let Ok(output) = verify_output {
         if output.status.success() {
-            println!("BuildTools.jar verified successfully.");
+            info!("BuildTools.jar verified successfully.");
             return Ok(());
         }
     }
 
-    eprintln!("Downloaded BuildTools.jar is corrupt.");
+    error!("Downloaded BuildTools.jar is corrupt.");
     fs::remove_file(BUILD_TOOLS_JAR)?;
     Err(io::Error::new(
         io::ErrorKind::Other,
@@ -99,7 +103,7 @@ fn create_build_directory(server_type: &str, version: &str) -> io::Result<PathBu
 // Runs BuildTools to generate Spigot JAR in the correct directory
 fn run_build_tools(server_type: &str, version: &str) -> io::Result<String> {
     let build_path = create_build_directory(server_type, version)?;
-    println!(
+    info!(
         "Running BuildTools for version {} in {:?}...",
         version, build_path
     );
@@ -120,7 +124,7 @@ fn run_build_tools(server_type: &str, version: &str) -> io::Result<String> {
 
     if output.status.success() {
         let jar_path = build_path.join(format!("spigot-{}.jar", version));
-        println!("Build complete: {:?}", jar_path);
+        info!("Build complete: {:?}", jar_path);
 
         // List of folders and files to delete
         let cleanup_items = vec![
@@ -145,11 +149,11 @@ fn run_build_tools(server_type: &str, version: &str) -> io::Result<String> {
             }
         }
 
-        println!("Build directory cleaned up, only JAR and Log file remains.");
+        info!("Build directory cleaned up, only JAR and Log file remains.");
 
         Ok(jar_path.to_string_lossy().to_string())
     } else {
-        eprintln!(
+        error!(
             "BuildTools failed with status {:?}\nSTDOUT: {}\nSTDERR: {}",
             output.status,
             String::from_utf8_lossy(&output.stdout),
@@ -182,13 +186,13 @@ fn setup_database() -> Result<Connection> {
                 )",
                 [],
             ) {
-                eprintln!("Database table creation failed: {:?}", e);
+                error!("Database table creation failed: {:?}", e);
                 return Err(e);
             }
             Ok(conn)
         }
         Err(e) => {
-            eprintln!("Failed to open SQLite database: {:?}", e);
+            error!("Failed to open SQLite database: {:?}", e);
             Err(e)
         }
     }
@@ -202,12 +206,12 @@ async fn background_build_checker() {
 
         let conn = tokio::task::spawn_blocking(setup_database)
             .await
-            .map_err(|e| eprintln!("Task panicked in spawn_blocking: {:?}", e))
+            .map_err(|e| error!("Task panicked in spawn_blocking: {:?}", e))
             .ok()
             .and_then(|res| res.ok());
 
         if conn.is_none() {
-            eprintln!("Database setup failed, skipping build...");
+            error!("Database setup failed, skipping build...");
             return;
         }
         let conn = conn.unwrap();
@@ -221,7 +225,7 @@ async fn background_build_checker() {
         let build_result =
             tokio::task::spawn_blocking(move || run_build_tools("Spigot", &latest_version))
                 .await
-                .map_err(|e| eprintln!("Task panicked: {:?}", e))
+                .map_err(|e| error!("Task panicked: {:?}", e))
                 .ok()
                 .and_then(|res| res.ok());
 
@@ -234,17 +238,41 @@ async fn background_build_checker() {
             .await
             .expect("Failed to store build info");
         } else {
-            eprintln!("Build task was cancelled or failed");
+            error!("Build task was cancelled or failed");
         }
 
-        println!("Sleeping for 6 hours before checking for new builds...");
+        info!("Sleeping for 6 hours before checking for new builds...");
         sleep(Duration::from_secs(6 * 3600)).await;
     }
 }
 
+fn init_logging() -> tracing_appender::non_blocking::WorkerGuard {
+    let log_file = rolling::daily("logs", "ShadowJar.log");
+    let (file_writer, guard) = tracing_appender::non_blocking(log_file);
+
+    let console_out = fmt::layer()
+        .with_timer(fmt::time::SystemTime)
+        .with_writer(std::io::stdout);
+    let file_out = fmt::layer()
+        .with_timer(fmt::time::SystemTime)
+        .with_writer(file_writer);
+
+    Registry::default().with(console_out).with(file_out).init();
+
+    guard
+}
+
+fn set_panic_hook() {
+    panic::set_hook(Box::new(|panic_info| {
+        error!("Panicked: {:?}", panic_info);
+    }));
+}
+
 #[tokio::main]
 async fn main() {
-    println!("Starting Spigot Build Fetcher...");
+    let _guard = init_logging();
+    set_panic_hook();
+    info!("Starting Spigot Build Fetcher...");
     tokio::spawn(background_build_checker());
 
     loop {
