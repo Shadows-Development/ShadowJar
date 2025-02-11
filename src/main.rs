@@ -14,7 +14,7 @@ const BUILD_DIR: &str = "Builds";
 
 mod api;
 mod db;
-use ShadowJar::db::{insert_version, DbConnection};
+use shadow_jar::db::{insert_version, DbConnection};
 // use crate::db::init_db;
 
 static DB: OnceCell<DbConnection> = OnceCell::const_new();
