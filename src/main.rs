@@ -1,21 +1,35 @@
-use chrono::Utc;
-use rusqlite::{params, Connection, Result};
 use std::fs;
 use std::io;
 use std::path::{Path, PathBuf};
 use std::process::Command;
+use tokio::net::TcpListener;
+use tokio::sync::OnceCell;
 use tokio::time::{sleep, Duration};
+// use tower::ServiceBuilder;
 
 const BUILD_TOOLS_URL: &str = "https://hub.spigotmc.org/jenkins/job/BuildTools/lastSuccessfulBuild/artifact/target/BuildTools.jar";
 const BUILD_TOOLS_JAR: &str = "BuildTools.jar";
-const DB_PATH: &str = "spigot_builds.db";
+// const DB_PATH: &str = "spigot_builds.db";
 const BUILD_DIR: &str = "Builds";
 
 mod api;
+mod db;
+use ShadowJar::db::{insert_version, DbConnection};
+// use crate::db::init_db;
+
+static DB: OnceCell<DbConnection> = OnceCell::const_new();
+
+async fn get_db() -> &'static DbConnection {
+    DB.get_or_init(|| async {
+        println!("🚀 Initializing database...");
+        db::init_db().await
+    })
+    .await
+}
 
 // Fetches latest Minecraft version (Placeholder function)
 fn get_latest_minecraft_version() -> String {
-    "1.21.4".to_string() // Hardcoded for now, needs proper fetching
+    "1.21.3".to_string() // Hardcoded for now, needs proper fetching
 }
 
 // Downloads BuildTools.jar if not present or corrupt
@@ -161,64 +175,19 @@ fn run_build_tools(server_type: &str, version: &str) -> io::Result<String> {
     }
 }
 
-// Stores build info in SQLite
-fn store_build_info(conn: &Connection, version: &str, build_path: &str) -> Result<()> {
-    let timestamp = Utc::now().to_rfc3339();
-    conn.execute(
-        "INSERT INTO spigot_builds (minecraft_version, build_timestamp, build_path) VALUES (?1, ?2, ?3)",
-        params![version, timestamp, build_path],
-    )?;
-    Ok(())
-}
-
-// Sets up SQLite database
-fn setup_database() -> Result<Connection> {
-    match Connection::open(DB_PATH) {
-        Ok(conn) => {
-            if let Err(e) = conn.execute(
-                "CREATE TABLE IF NOT EXISTS spigot_builds (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    minecraft_version TEXT NOT NULL,
-                    build_timestamp TEXT NOT NULL,
-                    build_path TEXT NOT NULL
-                )",
-                [],
-            ) {
-                eprintln!("Database table creation failed: {:?}", e);
-                return Err(e);
-            }
-            Ok(conn)
-        }
-        Err(e) => {
-            eprintln!("Failed to open SQLite database: {:?}", e);
-            Err(e)
-        }
-    }
-}
-
 // Background task for periodic build checks
 async fn background_build_checker() {
     loop {
         let latest_version = get_latest_minecraft_version();
         let latest_version_clone = latest_version.clone();
 
-        let conn = tokio::task::spawn_blocking(setup_database)
-            .await
-            .map_err(|e| eprintln!("Task panicked in spawn_blocking: {:?}", e))
-            .ok()
-            .and_then(|res| res.ok());
-
-        if conn.is_none() {
-            eprintln!("Database setup failed, skipping build...");
-            return;
-        }
-        let conn = conn.unwrap();
-
         tokio::task::spawn_blocking(|| {
             download_build_tools().expect("Failed to download BuildTools")
         })
         .await
         .expect("Failed to run blocking task");
+
+        let conn = get_db().await;
 
         let build_result =
             tokio::task::spawn_blocking(move || run_build_tools("Spigot", &latest_version))
@@ -229,12 +198,7 @@ async fn background_build_checker() {
 
         if let Some(build_path) = build_result {
             let latest_version_clone2 = latest_version_clone.clone();
-            tokio::task::spawn_blocking(move || {
-                store_build_info(&conn, &latest_version_clone2, &build_path)
-                    .expect("Failed to store build info")
-            })
-            .await
-            .expect("Failed to store build info");
+            insert_version(conn.clone(), "Spigot", &latest_version_clone2).await;
         } else {
             eprintln!("Build task was cancelled or failed");
         }
@@ -246,12 +210,20 @@ async fn background_build_checker() {
 
 #[tokio::main]
 async fn main() {
-    println!("🚀 Starting ShadowJar API...");
-    api::run_api().await;
-    // println!("Starting Spigot Build Fetcher...");
-    // tokio::spawn(background_build_checker());
+    println!("🚀 Initializing database...");
+    let db = get_db().await;
 
-    // loop {
-    //     tokio::time::sleep(Duration::from_secs(3600)).await;
-    // }
+    println!("🚀 Starting ShadowJar API...");
+    let app = api::create_api_router(db.clone()).await;
+
+    let listener = TcpListener::bind("0.0.0.0:8080").await.unwrap();
+    println!("✅ API server running on http://localhost:8080");
+
+    tokio::spawn(async move {
+        background_build_checker().await; // ✅ Ensure it runs async
+    });
+
+    axum::serve(listener, app.into_make_service())
+        .await
+        .unwrap(); // ✅ No `.await`
 }
