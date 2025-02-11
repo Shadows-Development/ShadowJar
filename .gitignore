@@ -14,4 +14,4 @@ BuildTools.jar
 BuildTools.log.txt
 
 # Database Files
-spigot_builds.db
+shadowjar.db
