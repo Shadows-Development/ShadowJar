@@ -11,6 +11,8 @@ const BUILD_TOOLS_JAR: &str = "BuildTools.jar";
 const DB_PATH: &str = "spigot_builds.db";
 const BUILD_DIR: &str = "Builds";
 
+mod api;
+
 // Fetches latest Minecraft version (Placeholder function)
 fn get_latest_minecraft_version() -> String {
     "1.21.4".to_string() // Hardcoded for now, needs proper fetching
@@ -244,10 +246,12 @@ async fn background_build_checker() {
 
 #[tokio::main]
 async fn main() {
-    println!("Starting Spigot Build Fetcher...");
-    tokio::spawn(background_build_checker());
+    println!("🚀 Starting ShadowJar API...");
+    api::run_api().await;
+    // println!("Starting Spigot Build Fetcher...");
+    // tokio::spawn(background_build_checker());
 
-    loop {
-        tokio::time::sleep(Duration::from_secs(3600)).await;
-    }
+    // loop {
+    //     tokio::time::sleep(Duration::from_secs(3600)).await;
+    // }
 }
