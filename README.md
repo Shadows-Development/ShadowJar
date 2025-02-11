@@ -47,6 +47,7 @@ cargo run
 
 ## **🛠️ Roadmap**
 ### **🚀 Short-Term Goals**
+- [ ] **Rework of the build system entirely**
 - [ ] **Support Additional Server Types** (Paper, Forge, Fabric)
 - [ ] **Implement API for Build Version Retrieval**
 - [ ] **Better Logging & Error Handling**
