@@ -1,0 +1,43 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*.*.*"  # Runs only when a version tag (e.g., v0.1.0) is pushed
+
+jobs:
+  release:
+    name: Create Windows Release
+    runs-on: windows-latest  # Runs only on Windows
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Dependencies
+        uses: Swatinem/rust-cache@v2
+
+      - name: Build Release
+        run: cargo build --release
+
+      - name: Generate Changelog
+        id: changelog
+        run: |
+          echo "## Changelog" > changelog.md
+          echo "" >> changelog.md
+          git log $(git describe --tags --abbrev=0)..HEAD --pretty=format:"- %s" >> changelog.md
+        shell: bash
+
+      - name: Upload Windows Executable & Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          tag_name: ${{ github.ref_name }}
+          name: "Release ${{ github.ref_name }}"
+          body_path: changelog.md
+          draft: false
+          prerelease: false
+          files: target/release/ShadowJar.exe
