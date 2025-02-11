@@ -1,34 +1,49 @@
-name: Rust CI
+name: 🚀 Rust CI
 
-on:
-  push:
-    branches:
-      - main
-  pull_request:
-    branches:
-      - main
+on: [push, pull_request]
 
 jobs:
-  build:
+  # 🟡 Step 1: Linting
+  lint:
     runs-on: windows-latest
     steps:
-      - name: Checkout Repository
+      - name: Checkout repository
         uses: actions/checkout@v4
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
 
-      - name: Cache Dependencies
-        uses: Swatinem/rust-cache@v2
-
-      - name: Format Check
+      - name: Check Formatting
         run: cargo fmt --check
 
-      - name: Lint Code
+      - name: Run Clippy (Linter)
         run: cargo clippy -- -D warnings
 
+  # 🟢 Step 2: Tests (Depends on Linting)
+  test:
+    runs-on: windows-latest
+    needs: lint # ✅ This ensures tests run ONLY if linting passes
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
       - name: Run Tests
-        run: cargo test --verbose
+        run: cargo test --all-features
+
+  # 🔵 Step 3: Build (Depends on Tests)
+  build:
+    runs-on: windows-latest
+    needs: test # ✅ This ensures build runs ONLY if tests pass
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
 
       - name: Build Project
         run: cargo build --release
+
