@@ -1,10 +1,6 @@
-use std::{
-    fs, io,
-    path::Path,
-    process::Command,
-};
-use tracing::{error, info};
 use regex::Regex;
+use std::{collections::HashSet, fs, io, path::Path, process::Command};
+use tracing::{error, info};
 
 pub struct BuildConfig {
     pub server_type: String,
@@ -43,7 +39,7 @@ impl BuildConfig {
                     "-mcversion".to_string(),
                     version.to_string(),
                 ],
-                output_jar: format!("fabric-server-launch.jar"),
+                output_jar: "fabric-server-launch.jar".to_string(),
             }),
             _ => None, // Unsupported server type
         }
@@ -57,13 +53,48 @@ fn extract_version(output_jar: &str) -> Option<String> {
         .map(|m| m.as_str().to_string())
 }
 
+fn clean_build_dir(build_path: &Path) -> std::io::Result<()> {
+    info!("🚀 Starting Directory Cleaning");
+
+    let version_regex = Regex::new(r"\b\d+\.\d+(\.\d+)?\b").unwrap();
+    let mut files_to_keep: HashSet<String> = HashSet::new();
+
+    // Read directory once, collect files to keep
+    let entries = fs::read_dir(build_path)?;
+    for entry in entries.flatten() {
+        let file_name = entry.file_name().to_string_lossy().to_string();
+
+        if (version_regex.is_match(&file_name) && entry.path().is_file())
+            || file_name.ends_with(".log")
+        {
+            files_to_keep.insert(file_name);
+        }
+    }
+
+    // Read directory again to delete unwanted files
+    for entry in fs::read_dir(build_path)?.flatten() {
+        let file_path = entry.path();
+        let file_name = entry.file_name().to_string_lossy().to_string();
+
+        if !files_to_keep.contains(&file_name) {
+            if file_path.is_file() {
+                fs::remove_file(&file_path)?;
+            } else if file_path.is_dir() {
+                fs::remove_dir_all(&file_path)?;
+            }
+        }
+    }
+
+    Ok(())
+}
+
 pub fn run_build(config: &BuildConfig, build_path: &Path) -> io::Result<String> {
     info!(
         "🚀 Starting build for {} version {}",
         config.server_type, config.output_jar
     );
-
-    fs::create_dir_all(&build_path)?;
+    let _ = config.build_command;
+    fs::create_dir_all(build_path)?;
 
     let absolute_path = dunce::canonicalize(build_path)
         .unwrap_or_else(|_| build_path.to_path_buf()) // Fallback to original path if canonicalization fails
@@ -84,18 +115,21 @@ pub fn run_build(config: &BuildConfig, build_path: &Path) -> io::Result<String> 
     };
 
     // Fix path formatting for Windows (Git Bash uses `/` instead of `\`)
-    let build_path_str = build_path.to_string_lossy().replace("\\", "/");
+    // let build_path_str = build_path.to_string_lossy().replace("\\", "/");
 
-    let extracted_version = extract_version(&config.output_jar)
-    .unwrap_or_else(|| {
-        eprintln!("⚠️ Warning: Could not extract version from '{}'", config.output_jar);
+    let extracted_version = extract_version(&config.output_jar).unwrap_or_else(|| {
+        eprintln!(
+            "⚠️ Warning: Could not extract version from '{}'",
+            config.output_jar
+        );
         "latest".to_string() // Default to "latest" if extraction fails
     });
 
     // Build the correct command string
     let command = format!(
         "cd \"{}\" && java -jar BuildTools.jar --rev {}",
-        absolute_path, extracted_version // ✅ Correct: Just pass "1.21.4", not "spigot-1.21.4.jar"
+        absolute_path,
+        extracted_version // ✅ Correct: Just pass "1.21.4", not "spigot-1.21.4.jar"
     );
 
     info!("Executing: {}", command);
@@ -110,6 +144,11 @@ pub fn run_build(config: &BuildConfig, build_path: &Path) -> io::Result<String> 
     if output.status.success() {
         let jar_path = build_path.join(&config.output_jar);
         info!("✅ Build complete: {:?}", jar_path);
+        if let Err(e) = clean_build_dir(build_path) {
+            error!("❌ Failed to clean build directory: {}", e)
+        } else {
+            info!("✅ Directory Cleaning Complete");
+        }
         Ok(jar_path.to_string_lossy().to_string())
     } else {
         error!(

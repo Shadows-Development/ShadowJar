@@ -1,6 +1,6 @@
+use build::{run_build, BuildConfig};
 use std::panic;
 use std::path::Path;
-use build::{BuildConfig, run_build};
 use tokio::net::TcpListener;
 use tokio::sync::OnceCell;
 use tracing::{error, info};
@@ -10,8 +10,8 @@ use tracing_subscriber::{
 };
 
 mod api;
-mod db;
 mod build;
+mod db;
 use shadow_jar::db::DbConnection;
 // use shadow_jar::build::{BuildConfig, run_build};
 
@@ -73,10 +73,6 @@ async fn main() {
     } else {
         error!("❌ Unsupported server type: {}", server_type);
     }
-
-    // tokio::spawn(async move {
-    //     background_build_checker().await;
-    // });
 
     axum::serve(listener, app.into_make_service())
         .await
