@@ -18,7 +18,9 @@ const BUILD_DIR: &str = "Builds";
 
 mod api;
 mod db;
+mod build;
 use shadow_jar::db::{insert_version, DbConnection};
+use shadow_jar::build::{BuildConfig, run_build};
 
 static DB: OnceCell<DbConnection> = OnceCell::const_new();
 
@@ -246,9 +248,23 @@ async fn main() {
     let listener = TcpListener::bind("0.0.0.0:8080").await.unwrap();
     info!("✅ API server running on http://localhost:8080");
 
-    tokio::spawn(async move {
-        background_build_checker().await;
-    });
+    let server_type = "Spigot";
+    let version = "1.21.4";
+
+    if let Some(config) = BuildConfig::new(server_type, version) {
+        let build_path = Path::new("Builds").join(&config.server_type).join(version);
+
+        match run_build(&config, &build_path) {
+            Ok(path) => info!("✅ Successfully built {}", path),
+            Err(e) => error!("❌ Build failed: {}", e),
+        }
+    } else {
+        error!("❌ Unsupported server type: {}", server_type);
+    }
+
+    // tokio::spawn(async move {
+    //     background_build_checker().await;
+    // });
 
     axum::serve(listener, app.into_make_service())
         .await
