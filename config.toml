@@ -1,0 +1,18 @@
+# config.toml
+
+[build]
+max_parallel_builds = 3        # Limit concurrent builds (avoid system overload)
+default_server_type = "Spigot" # Default server type if none is specified
+enable_cleanup = true          # Automatically remove temp build files
+
+[paths]
+build_dir = "Builds/"          # Root directory for storing builds
+log_dir = "logs/"              # Directory for log files
+db_path = "shadowjar.db"       # SQLite database file location
+
+[api]
+port = 8081                    # API server port
+# allowed_origins = ["*"]      # CORS settings (restrict in production)         WILL IMPLEMENT LATER ON
+
+[debug]
+enabled = false

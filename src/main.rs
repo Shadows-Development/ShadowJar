@@ -11,22 +11,25 @@ use tracing_subscriber::{
 
 mod api;
 mod build;
+mod config;
 mod db;
+use shadow_jar::config::get_config;
 use shadow_jar::db::DbConnection;
 // use shadow_jar::build::{BuildConfig, run_build};
 
 static DB: OnceCell<DbConnection> = OnceCell::const_new();
 
-async fn get_db() -> &'static DbConnection {
+async fn get_db(db_name: &str) -> &'static DbConnection {
     DB.get_or_init(|| async {
         info!("🚀 Initializing database...");
-        db::init_db("shadowjar.db").await
+        db::init_db(db_name).await
     })
     .await
 }
 
 fn init_logging() -> tracing_appender::non_blocking::WorkerGuard {
-    let log_file = rolling::daily("logs", "ShadowJar.log");
+    let config = get_config();
+    let log_file = rolling::daily(&config.paths.log_dir, "ShadowJar.log");
     let (file_writer, guard) = tracing_appender::non_blocking(log_file);
 
     let console_out = fmt::layer()
@@ -52,7 +55,9 @@ fn set_panic_hook() {
 async fn main() {
     let _guard = init_logging();
     set_panic_hook();
-    let db = get_db().await;
+
+    let config = get_config();
+    let db = get_db(&config.paths.db_path).await;
 
     info!("🚀 Starting ShadowJar API...");
     let app = api::create_api_router(db.clone()).await;
