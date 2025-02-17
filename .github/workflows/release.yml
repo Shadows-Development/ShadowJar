@@ -94,6 +94,6 @@ jobs:
           draft: false
           prerelease: false
           files: |
-            ./artifacts/binaries-windows-latest/ShadowJar-windows.exe
+            ./artifacts/binaries-windows-latest/shadow_jar-windows.exe
             ./artifacts/binaries-ubuntu-latest/shadow_jar-linux
             ./artifacts/binaries-macos-latest/shadow_jar-macos
