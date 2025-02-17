@@ -37,7 +37,7 @@ jobs:
         if: runner.os != 'Windows'
 
       - name: Rename Windows Binary
-        run: rename target\release\ShadowJar.exe ShadowJar-windows.exe
+        run: rename target\release\shadow_jar.exe shadow_jar-windows.exe
         shell: cmd
         if: runner.os == 'Windows'
 
@@ -48,7 +48,7 @@ jobs:
           path: |
             target/release/shadow_jar-linux
             target/release/shadow_jar-macos
-            target/release/ShadowJar-windows.exe
+            target/release/shadow_jar-windows.exe
 
   release:
     name: Create GitHub Release
