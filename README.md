@@ -1,4 +1,12 @@
 # **ShadowJar - Minecraft Server Jar Builder**  
+
+> ⚠️ **Notice:** Development of ShadowJar is currently progressing at a slower pace due to the author's limited experience with Rust.  
+> While the core ideas and goals for the project are well-defined, implementation is taking longer as foundational Rust knowledge is being actively developed.  
+>  
+> This project is **not abandoned** — continued development is expected over time, and major milestones will still be pursued.  
+>  
+> Contributions from the community are also welcome to help accelerate progress, especially from those experienced in Rust or Minecraft server tooling.
+
 ShadowJar is an **open-source Minecraft server jar builder** designed for **developers, server administrators, and companies** who need a **self-hosted, reliable solution** for fetching and compiling different Minecraft server versions without relying on external APIs.  
 
 With ShadowJar, you can **automate server builds**, maintain a **local versioning API**, and reduce dependency on third-party services like SpigotMC and PaperMC for fetching and managing versions. While ShadowJar still utilizes their official tools (such as `BuildTools.jar`), it allows users to **self-host their own build system**, cache versions locally, and automate updates—eliminating the need to manually query external sources.
